@@ -8,7 +8,7 @@ function join(s,data){return new Promise(resolve=>s.emit('join',data,resolve));}
 function event(s,name){return new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error(`No ${name} event`)),4000);s.once(name,data=>{clearTimeout(t);resolve(data);});});}
 try{
  const a=await connect(),b=await connect();
- assert.ok((await join(a,{name:'Artist',mode:'create',settings:{rounds:1,duration:30}})).ok);
+ assert.ok((await join(a,{name:'Artist',mode:'create',settings:{rounds:1,duration:30,truthDare:true}})).ok);
  await roomWhen(a,r=>r.status==='lobby');const code=a.room.id;
  assert.ok((await join(b,{name:'Guesser',mode:'join',code})).ok);
  await roomWhen(a,r=>r.players.length===2); a.emit('start');
@@ -17,11 +17,13 @@ try{
  const word=a.room.choices[0];a.emit('choose',word);
  await roomWhen(b,r=>r.status==='drawing');assert.equal(b.room.word,null);assert.equal(a.room.word,word);
  const stroke={from:[.1,.2],to:[.5,.6],color:'#333333',size:6};const received=event(b,'stroke');a.emit('stroke',stroke);assert.deepEqual(await received,stroke);
+ const fill={type:'fill',at:[.2,.3],color:'#ef6251'};const filled=event(b,'fill');a.emit('fill',fill);assert.deepEqual(await filled,fill);
  const cleared=event(b,'clear');a.emit('clear');await cleared;
- b.emit('chat',word.toUpperCase());await roomWhen(b,r=>r.status==='reveal');assert.equal(b.room.word,word);assert.ok(b.room.players.find(p=>p.id===b.id).score>=490);assert.equal(b.room.players.find(p=>p.id===a.id).score,75);
+ b.emit('chat',word.toUpperCase());await roomWhen(b,r=>r.status==='reveal');assert.equal(b.room.word,word);assert.ok(b.room.players.find(p=>p.id===b.id).score>=9);assert.equal(b.room.players.find(p=>p.id===a.id).score,0);
  await roomWhen(b,r=>r.status==='choosing'&&r.drawerId===b.id);b.emit('choose',b.room.choices[0]);await roomWhen(b,r=>r.status==='drawing');await roomWhen(a,r=>r.status==='drawing');a.emit('chat',b.room.word);
- await roomWhen(a,r=>r.status==='finished',8000);assert.equal(a.room.round,1);assert.equal(a.room.players.length,2);
+ await roomWhen(a,r=>r.status==='finished',8000);assert.equal(a.room.round,1);assert.equal(a.room.players.length,2);assert.equal(a.room.challenge.options.truth.length,2);assert.equal(a.room.challenge.options.dare.length,2);
+ const winner=a.room.challenge.winnerId===a.id?a:b,loser=a.room.challenge.loserId===a.id?a:b;winner.emit('truth-dare-choice',{type:'truth',index:0});await roomWhen(loser,r=>r.challenge?.prompt);assert.equal(loser.room.challenge.type,'truth');loser.emit('truth-dare-reply','Done');await roomWhen(winner,r=>r.challenge?.reply==='Done');
  a.disconnect();await roomWhen(b,r=>r.hostId===b.id);b.disconnect();
  const c=await connect(),d=await connect();await join(c,{name:'Public A',mode:'freeplay'});await roomWhen(c,r=>r.status==='lobby');await join(d,{name:'Public B',mode:'freeplay'});await roomWhen(d,r=>r.status==='choosing');assert.equal(c.room.id,d.room.id);c.disconnect();await roomWhen(d,r=>r.status==='lobby');
- console.log('PASS: private rooms, word secrecy, live strokes, clear, speed scoring, drawer rewards, turn rotation, final leaderboard, host transfer, Freeplay, and disconnect recovery.');
+ console.log('PASS: private rooms, word secrecy, live strokes, fill, clear, speed scoring, turn rotation, final leaderboard, Truth or Dare, host transfer, Freeplay, and disconnect recovery.');
 }finally{clients.forEach(s=>s.disconnect());}

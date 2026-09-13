@@ -1,7 +1,7 @@
 import next from 'next';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import { createRoom, publicRoom, choices, normalize, guessPoints } from './game.mjs';
+import { createRoom, publicRoom, choices, normalize, guessPoints, truthDareOptions } from './game.mjs';
 import { createClient } from 'redis';
 import pg from 'pg';
 const dev = process.env.NODE_ENV !== 'production';
@@ -30,7 +30,7 @@ if(process.env.DATABASE_URL) { db=new pg.Pool({connectionString:process.env.DATA
 function emit(room) { for (const p of room.players) io.to(p.id).emit('room', publicRoom(room,p.id)); if(redis?.isReady) redis.set(`doodle:room:${room.id}`,JSON.stringify(publicRoom(room,null)),{EX:3600}).catch(console.error); }
 function message(room,text,type='system',name='Doodle Club') { room.messages.push({id:crypto.randomUUID(),text,type,name}); room.messages=room.messages.slice(-100); }
 function later(room, fn, ms) { clearTimeout(room.timer); room.timer=setTimeout(fn,ms); }
-function finish(room) { clearTimeout(room.timer); room.status='finished'; room.round=room.rounds; room.deadline=0; message(room,'That’s a wrap! Every doodle deserves a little applause.'); emit(room); if(db) db.query('INSERT INTO games(room_code,results) VALUES($1,$2)',[room.id,JSON.stringify(room.players.map(({name,score})=>({name,score})))]).catch(console.error); }
+function finish(room) { clearTimeout(room.timer); room.status='finished'; room.round=room.rounds; room.deadline=0; const ranked=[...room.players].sort((a,b)=>b.score-a.score); room.challenge=room.truthDare&&ranked.length>1?{winnerId:ranked[0].id,loserId:ranked[ranked.length-1].id,options:truthDareOptions(),type:null,prompt:null,reply:null}:null; message(room,'That’s a wrap! Every doodle deserves a little applause.'); emit(room); if(db) db.query('INSERT INTO games(room_code,results) VALUES($1,$2)',[room.id,JSON.stringify(room.players.map(({name,score})=>({name,score})))]).catch(console.error); }
 function nextTurn(room) {
  if(room.players.length<2) { clearTimeout(room.timer); room.status='lobby'; room.deadline=0; room.word=null; message(room,'Waiting for one more player to join.'); return emit(room); }
  room.turnIndex++;
@@ -58,16 +58,19 @@ io.on('connection',socket=>{
  socket.data.roomId=room.id; socket.join(room.id); message(room,`${name} joined the club.`); ack({ok:true}); emit(room);
  if(room.kind==='public'&&room.players.length>=2&&room.status==='lobby') {room.round=1;room.turnOrder=room.players.map(p=>p.id);room.turnIndex=-1;nextTurn(room);}
  });
- socket.on('start',()=>{const r=rooms.get(socket.data.roomId);if(!r||r.hostId!==socket.id||!['lobby','finished'].includes(r.status)||r.players.length<2)return;r.players.forEach(p=>p.score=0);r.round=1;r.turnOrder=r.players.map(p=>p.id);r.turnIndex=-1;nextTurn(r);});
+ socket.on('start',()=>{const r=rooms.get(socket.data.roomId);if(!r||r.hostId!==socket.id||!['lobby','finished'].includes(r.status)||r.players.length<2)return;r.players.forEach(p=>p.score=0);r.challenge=null;r.round=1;r.turnOrder=r.players.map(p=>p.id);r.turnIndex=-1;nextTurn(r);});
  socket.on('choose',word=>{const r=rooms.get(socket.data.roomId);if(r?.drawerId===socket.id&&r.status==='choosing'&&r.choices.includes(word))selectWord(r,word);});
  socket.on('chat',value=>{const r=rooms.get(socket.data.roomId);if(!r||typeof value!=='string'||Date.now()-lastChat<350)return;lastChat=Date.now();const text=value.trim().slice(0,160);if(!text)return;
  const p=r.players.find(p=>p.id===socket.id);
  if(r.status==='drawing') {
  if(Date.now()>=r.deadline)return reveal(r);
  if(socket.id===r.drawerId||r.guessed.includes(socket.id))return;
- if(normalize(text)===normalize(r.word)) {const points=guessPoints((r.deadline-Date.now())/1000,r.duration);p.score+=points;r.guessed.push(p.id);const drawer=r.players.find(p=>p.id===r.drawerId);if(drawer)drawer.score+=75;message(r,`${p.name} guessed the word! +${points}`,'correct'); if(r.players.filter(p=>p.id!==r.drawerId).every(p=>r.guessed.includes(p.id))) return reveal(r); emit(r);return;}
+ if(normalize(text)===normalize(r.word)) {const points=guessPoints((r.deadline-Date.now())/1000,r.duration);p.score+=points;r.guessed.push(p.id);message(r,`${p.name} guessed the word! +${points}`,'correct'); if(r.players.filter(p=>p.id!==r.drawerId).every(p=>r.guessed.includes(p.id))) return reveal(r); emit(r);return;}
  } message(r,text,'chat',p.name);emit(r); });
  socket.on('stroke',stroke=>{const r=rooms.get(socket.data.roomId);if(!r||r.drawerId!==socket.id||r.status!=='drawing')return;if(Date.now()-drawWindow>1000){drawWindow=Date.now();drawCount=0;}if(++drawCount>150||r.strokes.length>=30000)return;if(!stroke||!Array.isArray(stroke.from)||!Array.isArray(stroke.to)||stroke.from.length!==2||stroke.to.length!==2||![...stroke.from,...stroke.to].every(v=>Number.isFinite(v)&&v>=0&&v<=1)||!/^#[0-9a-f]{6}$/i.test(stroke.color)||!Number.isFinite(stroke.size)||stroke.size<1||stroke.size>40)return;const clean={from:stroke.from,to:stroke.to,color:stroke.color,size:stroke.size};r.strokes.push(clean);socket.to(r.id).emit('stroke',clean);});
+ socket.on('fill',fill=>{const r=rooms.get(socket.data.roomId);if(!r||r.drawerId!==socket.id||r.status!=='drawing')return;if(Date.now()-drawWindow>1000){drawWindow=Date.now();drawCount=0;}if(++drawCount>150||r.strokes.length>=30000)return;if(!fill||!Array.isArray(fill.at)||fill.at.length!==2||!fill.at.every(v=>Number.isFinite(v)&&v>=0&&v<=1)||!/^#[0-9a-f]{6}$/i.test(fill.color))return;const clean={type:'fill',at:fill.at,color:fill.color};r.strokes.push(clean);socket.to(r.id).emit('fill',clean);});
+ socket.on('truth-dare-choice',data=>{const r=rooms.get(socket.data.roomId),c=r?.challenge;if(!c||r.status!=='finished'||socket.id!==c.winnerId||c.prompt)return;const type=data?.type==='dare'?'dare':data?.type==='truth'?'truth':null,index=Number(data?.index);if(!type||!Number.isInteger(index)||index<0||index>1)return;c.type=type;c.prompt=c.options[type][index];message(r,`${r.players.find(p=>p.id===c.winnerId)?.name||'Winner'} picked ${type}.`);emit(r);});
+ socket.on('truth-dare-reply',value=>{const r=rooms.get(socket.data.roomId),c=r?.challenge;if(!c||r.status!=='finished'||socket.id!==c.loserId||!c.prompt)return;const text=String(value||'').trim().slice(0,240);if(!text)return;c.reply=text;message(r,`${r.players.find(p=>p.id===c.loserId)?.name||'Loser'} replied: ${text}`,'chat');emit(r);});
  socket.on('clear',()=>{const r=rooms.get(socket.data.roomId);if(r?.drawerId===socket.id&&r.status==='drawing'){r.strokes=[];io.to(r.id).emit('clear');}});
  socket.on('leave',()=>leave(socket)); socket.on('disconnect',()=>leave(socket));
 });

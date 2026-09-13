@@ -23,7 +23,7 @@ npm start
 
 ## Game rules
 
-Each player draws once per round. The drawer has 15 seconds to pick one of three words; the server picks automatically if they don't choose. Guessers earn 100–500 points based on speed. The drawer earns 75 points per successful guess. Correct guesses are hidden from other guessers. The turn ends when time runs out or all guessers solve it. A five-second reveal separates turns. The host can start another game after the final leaderboard.
+Each player draws once per round. The drawer has 15 seconds to pick one of three words; the server picks automatically if they don't choose. Guessers earn 1–10 points based on speed. Correct guesses are hidden from other guessers. The turn ends when time runs out or all guessers solve it. A five-second reveal separates turns. The host can start another game after the final leaderboard. Private rooms can also enable Truth or Dare, where the winner chooses one prompt from two truth and two dare options for the lowest scorer to answer.
 
 Canvas coordinates are normalized for differently sized screens, with eight colors, four brush sizes, an eraser, and a clear tool. Late joiners receive the existing canvas. A disconnected player is removed, host ownership transfers automatically, and the game returns to its lobby if fewer than two players remain. Rejoining creates a new player and does not restore their score.
 
