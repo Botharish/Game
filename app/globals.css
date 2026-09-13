@@ -174,3 +174,55 @@
   .canvas-lobby, .canvas-choosing, .canvas-finished { aspect-ratio: auto; }
   .canvas-overlay h2 { max-width: 100%; overflow-wrap: anywhere; }
 }
+
+/* Compact phone layout: keep joining and guessing within easy reach. */
+@media (max-width: 600px) {
+  .hero { position: relative; padding: 25px 0 12px; }
+  .hero h1 { font-size: clamp(38px, 11vw, 56px); letter-spacing: -2px; margin: 13px 0 20px; }
+  .hero p { font-size: 13px; }
+  .hero-art { display: none; }
+  .hero-notes { line-height: 1.6; margin-top: 14px; }
+  .section-title { margin: 18px 0 13px; }
+  .section-title h2 { font-size: 15px; }
+  .section-title h2 > span { display: none; }
+  .identity-card { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px 14px; padding: 18px; }
+  .step-label { grid-column: 1 / -1; grid-row: auto; margin: 0 0 4px; }
+  .avatar-row { display: contents; }
+  .avatar-picker { grid-column: 1; grid-row: 2 / 4; align-self: center; }
+  .avatar-row > div { display: none; }
+  .identity-card > label { grid-column: 2; grid-row: 2; margin: 0; }
+  .name-input { grid-column: 2; grid-row: 3; margin: 0; }
+  .identity-foot { grid-column: 1 / -1; grid-row: 4; margin: 0; font-size: 10px; }
+  .mode-card { padding: 19px; }
+  .mode-top { margin-bottom: 12px; }
+  .mode-card h3 { font-size: 22px; }
+  .mode-card p { font-size: 13px; margin-bottom: 16px; }
+  .hand-note { display: none; }
+  .how-strip { gap: 20px; }
+  .game-heading { align-items: center; }
+  .game-heading h1 { font-size: 19px; }
+  .round-badge { font-size: 11px; padding: 8px 10px; }
+  .players-panel .panel-title { flex-basis: 75px; height: 58px; }
+  .player { flex-basis: 172px; padding: 7px 10px; }
+  .player-avatar { font-size: 24px; }
+  .player strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .canvas-lobby { min-height: 290px; }
+  .lobby-overlay { padding: 16px; }
+  .lobby-overlay > svg { width: 58px; height: 58px; margin-bottom: 8px; }
+  .lobby-overlay h2 { font-size: 19px; }
+  .lobby-overlay p { margin-top: 8px; }
+  .invite-code { margin-top: 13px; padding: 5px 14px; }
+  .canvas-overlay .button { margin-top: 12px; }
+  .chat-panel { height: 255px; }
+  .canvas-tip { display: none; }
+  .canvas-bar { min-height: 49px; }
+  .chat-panel form { margin-bottom: 10px; }
+  .chat-note { display: none; }
+  .drawing-toolbar { padding: 6px 10px; }
+  .bottom-note { gap: 12px; }
+}
+
+@media (max-width: 420px) {
+  .site .header nav { gap: 4px; }
+  .site .nav-link { width: 42px; justify-content: center; gap: 0; font-size: 0; padding: 0; }
+}
