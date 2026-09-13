@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "NODE_ENV=production node server/index.mjs",
     "test": "node --test tests/*.test.mjs",
-    "test:multiplayer": "node tests/multiplayer.mjs"
+    "test:multiplayer": "node tests/multiplayer.mjs",
+    "start:server": "GAME_SERVER_ONLY=true NODE_ENV=production node server/index.mjs"
   },
   "dependencies": {
     "next": "^15.5.12",

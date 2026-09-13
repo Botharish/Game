@@ -5,9 +5,24 @@ import { createRoom, publicRoom, choices, normalize, guessPoints } from './game.
 import { createClient } from 'redis';
 import pg from 'pg';
 const dev = process.env.NODE_ENV !== 'production';
-const app = next({dev}); await app.prepare();
-const http = createServer(app.getRequestHandler());
-const io = new Server(http, {maxHttpBufferSize:100000});
+const standalone = process.env.GAME_SERVER_ONLY === 'true';
+let handler;
+if (!standalone) {
+ const app = next({dev}); await app.prepare();
+ handler = app.getRequestHandler();
+}
+const allowedOrigins = (process.env.CLIENT_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+if (standalone && !allowedOrigins.length) throw new Error('Set CLIENT_ORIGINS to your frontend URL, e.g. https://game-psi-blond.vercel.app');
+const http = createServer((req, res) => {
+ if (req.url === '/health') { res.writeHead(200, {'Content-Type':'application/json'}); return res.end(JSON.stringify({status:'ok'})); }
+ if (handler) return handler(req, res);
+ res.writeHead(404); res.end('Not found');
+});
+const io = new Server(http, {
+ maxHttpBufferSize:100000,
+ ...(allowedOrigins.length ? {cors:{origin:allowedOrigins,methods:['GET','POST']}} : {}),
+ ...(standalone ? {allowRequest:(req, callback) => callback(null, !req.headers.origin || allowedOrigins.includes(req.headers.origin))} : {}),
+});
 const rooms = new Map();
 let redis, db;
 if(process.env.REDIS_URL) { redis=createClient({url:process.env.REDIS_URL}); redis.on('error',e=>console.error('Redis:',e.message)); try {await redis.connect();} catch(e) {console.error(e.message);} }

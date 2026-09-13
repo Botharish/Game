@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: doodle-club-server
+    runtime: node
+    buildCommand: npm ci
+    startCommand: npm run start:server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGINS
+        value: https://game-psi-blond.vercel.app
