@@ -1,0 +1,22 @@
+{
+  "name": "doodle-club",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server/index.mjs",
+    "build": "next build",
+    "start": "NODE_ENV=production node server/index.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:multiplayer": "node tests/multiplayer.mjs"
+  },
+  "dependencies": {
+    "next": "^15.5.12",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "lucide-react": "^0.468.0",
+    "redis": "^4.7.0",
+    "pg": "^8.13.1"
+  }
+}
